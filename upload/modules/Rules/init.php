@@ -9,5 +9,6 @@
 $rules_language = new Language(ROOT_PATH . '/modules/Rules/language', LANGUAGE);
 $language = new Language('core', LANGUAGE);
 
+require_once(ROOT_PATH . '/modules/Rules/classes/RulesMigration.php');
 require_once(ROOT_PATH . '/modules/Rules/module.php');
 $module = new Rules_Module($language, $rules_language, $pages);

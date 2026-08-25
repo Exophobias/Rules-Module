@@ -13,15 +13,15 @@ require_once(ROOT_PATH . '/core/templates/frontend_init.php');
 $rules_message = DB::getInstance()->get("rules_settings", ["name", "=", "rules_message"])->results();
 $rules_message = $rules_message[0]->value;
 
-$catagories = DB::getInstance()->get("rules_catagories", ["id", "<>", 0])->results();
+$categories = DB::getInstance()->get("rules_catagories", ["id", "<>", 0])->results();
 
-$catagories_array = [];
-foreach ($catagories as $catagory) {
-    $catagories_array[] = [
-        'id' => Output::getClean($catagory->id),
-        'name' => Output::getClean($catagory->name),
-        'icon' => Output::getPurified(Output::getDecoded($catagory->icon)),
-        'rules' => Output::getPurified(Output::getDecoded($catagory->rules))
+$categories_array = [];
+foreach ($categories as $category) {
+    $categories_array[] = [
+        'id' => Output::getClean($category->id),
+        'name' => Output::getClean($category->name),
+        'icon' => Output::getPurified(Output::getDecoded($category->icon)),
+        'rules' => Output::getPurified(Output::getDecoded($category->rules))
     ];
 }
 
@@ -38,7 +38,9 @@ foreach ($buttons as $button) {
 $template->getEngine()->addVariables([
     'RULES' => $rules_language->get('rules', 'rules'),
     'MESSAGE' => Output::getPurified(Output::getDecoded($rules_message)),
-    'CATAGORIES' => $catagories_array,
+    'CATEGORIES' => $categories_array,
+    // Retain the old misspelled variable for third-party templates made against Rules <= 1.8.6.
+    'CATAGORIES' => $categories_array,
     'BUTTONS' => $buttons_array
 ]);
 

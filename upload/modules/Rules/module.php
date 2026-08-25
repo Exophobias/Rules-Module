@@ -16,7 +16,7 @@ class Rules_Module extends Module {
 
         $name = 'Rules';
         $author = '<a href="https://coldfiredzn.com" target="_blank" rel="nofollow noopener">Coldfire</a>';
-        $module_version = '1.8.6';
+        $module_version = '1.9.0';
         $nameless_version = '2.2.5';
 
         parent::__construct($this, $name, $author, $module_version, $nameless_version);
@@ -26,43 +26,22 @@ class Rules_Module extends Module {
     }
 
     public function onInstall() {
+        $db = DB::getInstance();
+        $tables = [
+            'rules_settings' => " `id` int(11) NOT NULL AUTO_INCREMENT, `name` varchar(20) NOT NULL, `value` varchar(2048) NOT NULL, PRIMARY KEY (`id`)",
+            // The released schema misspells categories. Keep the physical name for compatibility.
+            'rules_catagories' => " `id` int(11) NOT NULL AUTO_INCREMENT, `name` varchar(96) NOT NULL, `icon` varchar(96) NOT NULL, `rules` longtext NOT NULL, PRIMARY KEY (`id`)",
+            'rules_buttons' => " `id` int(11) NOT NULL AUTO_INCREMENT, `name` varchar(96) NOT NULL, `link` varchar(96) NOT NULL, PRIMARY KEY (`id`)",
+        ];
 
-        try {
-            DB::getInstance()->createTable("rules_settings", " `id` int(11) NOT NULL AUTO_INCREMENT, `name` varchar(20) NOT NULL, `value` varchar(2048) NOT NULL, PRIMARY KEY (`id`)");
-            DB::getInstance()->createTable("rules_catagories", " `id` int(11) NOT NULL AUTO_INCREMENT, `name` varchar(96) NOT NULL, `icon` varchar(96) NOT NULL, `rules` longtext NOT NULL, PRIMARY KEY (`id`)");
-            DB::getInstance()->createTable("rules_buttons", " `id` int(11) NOT NULL AUTO_INCREMENT, `name` varchar(96) NOT NULL, `link` varchar(96) NOT NULL, PRIMARY KEY (`id`)");
-        } catch (Exception $e) {
+        foreach ($tables as $table => $schema) {
+            if (!$db->showTables($table) && !$db->createTable($table, $schema)) {
+                throw new RuntimeException("Could not create nl2_$table.");
+            }
         }
 
-        try {
-            DB::getInstance()->insert('rules_settings', [
-                'name' => 'rules_message',
-                'value' => '<div style="text-align: center;"><strong><span style="font-size:18px">Welcome to Skyfall&#39;s rules page!</span></strong><br />Click on the tabs above to see the different sections of the rules.<br /><br /><strong>Note:</strong>&nbsp;You can change this message and the rules lists on the tabs above in StaffCP -&gt; Rules. All of the rules lists are fully customizable via a text editor, so you can create unlimited rules, include any type of punishments, and format it all however you want.<br /><br />Useful links:</div>'
-            ]);
-            DB::getInstance()->insert('rules_catagories', [
-                'name' => 'Bedwars',
-                'icon' => '<i class="fas fa-bed"></i>',
-                'rules' => '&lt;div style=&quot;text-align: center;&quot;&gt;&lt;strong&gt;&lt;span style=&quot;font-size:18px&quot;&gt;Bedwars Server Rules:&lt;/span&gt;&lt;/strong&gt;&lt;/div&gt;&lt;br /&gt;1. No hacking or unfair advantages of any kind.&lt;br /&gt;&lt;br /&gt;2. No cross teaming in any bedwars mode.&lt;br /&gt;&lt;br /&gt;3. No team griefing&lt;br /&gt;&lt;br /&gt;&lt;span style=&quot;color:#c0392b&quot;&gt;&lt;strong&gt;Punishment:&lt;/strong&gt;&lt;/span&gt; Breaking any of these rules will result in a temporary ban for 30 days.'
-            ]);
-            DB::getInstance()->insert('rules_catagories', [
-                'name' => 'Chat',
-                'icon' => '<i class="fas fa-comments"></i>',
-                'rules' => '&lt;div style=&quot;text-align: center;&quot;&gt;&lt;strong&gt;&lt;span style=&quot;font-size:18px&quot;&gt;Chat Rules:&lt;/span&gt;&lt;/strong&gt;&lt;/div&gt;&lt;br /&gt;1. No swearing&lt;br /&gt;&lt;br /&gt;2. No bullying, put-downs, or other harassment&lt;br /&gt;&lt;br /&gt;3. No spamming&lt;br /&gt;&lt;br /&gt;&lt;span style=&quot;color:#c0392b&quot;&gt;&lt;strong&gt;Punishment:&lt;/strong&gt;&lt;/span&gt; Breaking any of these rules can result in a temporary/permanent mute'
-            ]);
-            DB::getInstance()->insert('rules_buttons', [
-                'name' => 'Player Report',
-                'link' => 'https://hypixel.net/forums/report-rule-breakers.37/'
-            ]);
-            DB::getInstance()->insert('rules_buttons', [
-                'name' => 'Bans',
-                'link' => 'https://www.lemoncloud.org/bans/'
-            ]);
-            DB::getInstance()->insert('rules_buttons', [
-                'name' => 'Ban Appeal',
-                'link' => 'https://hypixel.net/forums/ban-appeal.36/'
-            ]);
-        } catch (Exception $e) {
-        }
+        // Seeds a fresh install and repairs only byte-identical vendor samples on an old install.
+        Rules_Migration::migrate(true);
 
         try {
             $group = DB::getInstance()->get('groups', ['id', '=', 2])->results();
@@ -84,7 +63,9 @@ class Rules_Module extends Module {
 
     public function onEnable()
     {
-        // No actions necessary
+        // NamelessMC does not call onInstall() again after a module is registered. Re-enabling the
+        // module is therefore one supported route into the conservative, idempotent content upgrade.
+        Rules_Migration::migrate(true);
     }
 
     public function onDisable()
