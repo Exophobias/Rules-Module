@@ -16,7 +16,7 @@ class Rules_Module extends Module {
 
         $name = 'Rules';
         $author = '<a href="https://coldfiredzn.com" target="_blank" rel="nofollow noopener">Coldfire</a>';
-        $module_version = '1.9.0';
+        $module_version = '1.9.1';
         $nameless_version = '2.2.5';
 
         parent::__construct($this, $name, $author, $module_version, $nameless_version);
@@ -40,7 +40,7 @@ class Rules_Module extends Module {
             }
         }
 
-        // Seeds a fresh install and repairs only byte-identical vendor samples on an old install.
+        // Seeds a fresh install and repairs only byte-identical shipped defaults on an old install.
         Rules_Migration::migrate(true);
 
         try {

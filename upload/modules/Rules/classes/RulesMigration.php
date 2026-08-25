@@ -6,9 +6,9 @@ declare(strict_types=1);
  * Conservative content migration for Patriam's Rules installation.
  *
  * The legacy module has no upgrade hook. This class is therefore shared by onEnable() and the
- * module's CLI migrator. Existing rows are changed only when every shipped vendor field still
- * matches the 1.8.6 sample. Custom rows are retained, even when they use the same display name as
- * one of the Patriam defaults.
+ * module's CLI migrator. Existing rows are changed only when every field still matches a shipped
+ * vendor sample or a previous Patriam default. Custom rows are retained, even when they use the
+ * same display name as one of the Patriam defaults.
  */
 final class Rules_Migration
 {
@@ -18,7 +18,9 @@ final class Rules_Migration
 
     private const VENDOR_CHAT_RULES = '&lt;div style=&quot;text-align: center;&quot;&gt;&lt;strong&gt;&lt;span style=&quot;font-size:18px&quot;&gt;Chat Rules:&lt;/span&gt;&lt;/strong&gt;&lt;/div&gt;&lt;br /&gt;1. No swearing&lt;br /&gt;&lt;br /&gt;2. No bullying, put-downs, or other harassment&lt;br /&gt;&lt;br /&gt;3. No spamming&lt;br /&gt;&lt;br /&gt;&lt;span style=&quot;color:#c0392b&quot;&gt;&lt;strong&gt;Punishment:&lt;/strong&gt;&lt;/span&gt; Breaking any of these rules can result in a temporary/permanent mute';
 
-    private const PATRIAM_MESSAGE = '<div style="text-align: center;"><strong><span style="font-size:18px">Patriam Community Rules</span></strong><br />These rules apply across Patriam and its community spaces. Select a category for its current policy.<br /><br />The summaries are editable in StaffCP as the server develops. Use the buttons below to report a player or appeal a punishment.</div>';
+    private const PATRIAM_1_9_0_MESSAGE = '<div style="text-align: center;"><strong><span style="font-size:18px">Patriam Community Rules</span></strong><br />These rules apply across Patriam and its community spaces. Select a category for its current policy.<br /><br />The summaries are editable in StaffCP as the server develops. Use the buttons below to report a player or appeal a punishment.</div>';
+
+    private const PATRIAM_MESSAGE = '<div style="text-align: center;"><strong><span style="font-size:18px">Patriam Community Rules</span></strong><br />These rules apply across Patriam and its community spaces. Select a category for its current policy.<br /><br />The summaries are editable in StaffCP as the server develops. Use the buttons below to report a player, report a bug, or appeal a punishment.</div>';
 
     /** @var array<string,string> */
     private const TABLES = [
@@ -132,6 +134,21 @@ final class Rules_Migration
             "replace the exact Skyfall introduction",
             $actions
         );
+        self::replaceExactSample(
+            $working['settings'],
+            [
+                'name' => 'rules_message',
+                'value' => self::PATRIAM_1_9_0_MESSAGE,
+            ],
+            [
+                'name' => 'rules_message',
+                'value' => self::PATRIAM_MESSAGE,
+            ],
+            ['name'],
+            'settings',
+            'update the exact Rules 1.9.0 Patriam introduction',
+            $actions
+        );
         self::ensureByFields(
             $working['settings'],
             ['name' => 'rules_message'],
@@ -210,6 +227,18 @@ final class Rules_Migration
                 $actions
             );
         }
+        $bugReportButton = [
+            'name' => 'Bug Report',
+            'link' => '/cases/new/bug',
+        ];
+        self::ensureByFields(
+            $working['buttons'],
+            $bugReportButton,
+            $bugReportButton,
+            'buttons',
+            "add canonical Patriam button 'Bug Report'",
+            $actions
+        );
 
         return $actions;
     }
@@ -226,8 +255,8 @@ final class Rules_Migration
         $fresh = ['settings' => [], 'categories' => [], 'buttons' => []];
         $freshActions = self::plan($fresh);
         self::check(
-            count(array_filter($freshActions, static fn (array $action): bool => $action['operation'] === 'insert')) === 11,
-            'a fresh installation does not plan exactly one message, eight categories and two buttons',
+            count(array_filter($freshActions, static fn (array $action): bool => $action['operation'] === 'insert')) === 12,
+            'a fresh installation does not plan exactly one message, eight categories and three buttons',
             $failures
         );
         self::check(
@@ -245,6 +274,14 @@ final class Rules_Migration
             $failures
         );
         self::check(
+            self::containsExact($migratedVendor['buttons'], [
+                'name' => 'Bug Report',
+                'link' => '/cases/new/bug',
+            ]),
+            'the canonical Bug Report button was not added to the vendor snapshot',
+            $failures
+        );
+        self::check(
             !self::containsExact($migratedVendor['categories'], [
                 'name' => 'Bedwars',
                 'icon' => '<i class="fas fa-bed"></i>',
@@ -259,6 +296,32 @@ final class Rules_Migration
                 'link' => 'https://www.lemoncloud.org/bans/',
             ]),
             'the exact vendor Bans button survives migration',
+            $failures
+        );
+
+        $previousPatriam = self::previousPatriamSnapshot();
+        $previousActions = self::plan($previousPatriam);
+        $migratedPreviousPatriam = self::simulate($previousPatriam, $previousActions);
+        self::check(
+            count($previousActions) === 2
+                && self::targetsId($previousActions, 'settings', 1),
+            'the Rules 1.9.0 snapshot does not plan exactly its introduction update and Bug Report insertion',
+            $failures
+        );
+        self::check(
+            self::containsExact($migratedPreviousPatriam['settings'], [
+                'name' => 'rules_message',
+                'value' => self::PATRIAM_MESSAGE,
+            ]) && self::containsExact($migratedPreviousPatriam['buttons'], [
+                'name' => 'Bug Report',
+                'link' => '/cases/new/bug',
+            ]),
+            'the Rules 1.9.0 snapshot did not migrate to the current Patriam defaults',
+            $failures
+        );
+        self::check(
+            self::plan($migratedPreviousPatriam) === [],
+            'the Rules 1.9.0 upgrade plan is not idempotent',
             $failures
         );
 
@@ -324,6 +387,7 @@ final class Rules_Migration
                 ['id' => 301, 'name' => 'Bans', 'link' => '/custom-bans'],
                 ['id' => 302, 'name' => 'Player Report', 'link' => '/custom-report'],
                 ['id' => 303, 'name' => 'Ban Appeal', 'link' => '/custom-appeal'],
+                ['id' => 304, 'name' => 'Bug Report', 'link' => '/custom-bug'],
             ],
         ];
         $customActions = self::plan($custom);
@@ -336,6 +400,7 @@ final class Rules_Migration
             ['collection' => 'buttons', 'id' => 301],
             ['collection' => 'buttons', 'id' => 302],
             ['collection' => 'buttons', 'id' => 303],
+            ['collection' => 'buttons', 'id' => 304],
         ] as $protected) {
             self::check(
                 !self::targetsId($customActions, $protected['collection'], $protected['id']),
@@ -350,6 +415,9 @@ final class Rules_Migration
             ]) && self::containsExact($migratedCustom['buttons'], [
                 'name' => 'Ban Appeal',
                 'link' => '/cases/new/appeal',
+            ]) && self::containsExact($migratedCustom['buttons'], [
+                'name' => 'Bug Report',
+                'link' => '/cases/new/bug',
             ]),
             'canonical case buttons were not added beside customized buttons',
             $failures
@@ -758,6 +826,36 @@ final class Rules_Migration
                     'id' => 3,
                     'name' => 'Ban Appeal',
                     'link' => 'https://hypixel.net/forums/ban-appeal.36/',
+                ],
+            ],
+        ];
+    }
+
+    /** @return array{settings:array<int,array<string,mixed>>,categories:array<int,array<string,mixed>>,buttons:array<int,array<string,mixed>>} */
+    private static function previousPatriamSnapshot(): array
+    {
+        $categories = [];
+        foreach (self::categoryDefaults() as $index => $category) {
+            $categories[] = ['id' => $index + 1] + $category;
+        }
+
+        return [
+            'settings' => [[
+                'id' => 1,
+                'name' => 'rules_message',
+                'value' => self::PATRIAM_1_9_0_MESSAGE,
+            ]],
+            'categories' => $categories,
+            'buttons' => [
+                [
+                    'id' => 1,
+                    'name' => 'Player Report',
+                    'link' => '/cases/new/report',
+                ],
+                [
+                    'id' => 2,
+                    'name' => 'Ban Appeal',
+                    'link' => '/cases/new/appeal',
                 ],
             ],
         ];

@@ -5,7 +5,7 @@ support information are available from [Coldfire Design](https://coldfiredzn.com
 
 ## What this fork changes
 
-Rules 1.9.0 replaces the generic Skyfall and Bedwars fresh-install samples with eight short,
+Rules 1.9.0 replaced the generic Skyfall and Bedwars fresh-install samples with eight short,
 StaffCP-editable Patriam sections:
 
 - Community
@@ -17,9 +17,10 @@ StaffCP-editable Patriam sections:
 - PvP & Conflict
 - Accounts & Security
 
-The home buttons are **Player Report** (`/cases/new/report`) and **Ban Appeal**
-(`/cases/new/appeal`). The sample Bans button is not installed. Those routes belong to Patriam's
-separate cases module; this repository only supplies the Rules page links.
+Rules 1.9.1 adds the third home action. The buttons are **Player Report** (`/cases/new/report`),
+**Ban Appeal** (`/cases/new/appeal`), and **Bug Report** (`/cases/new/bug`). The sample Bans button
+is not installed. Those routes belong to Patriam's separate cases module; this repository only
+supplies the Rules page links.
 
 The released database table is misspelled `rules_catagories`. It remains unchanged so an existing
 installation and third-party integrations continue to work. New PHP and bundled-template variables
@@ -37,7 +38,7 @@ no-op.
 ## Upgrading an installed site
 
 Deploying files does not call `onEnable()` for a module which is already enabled. Use the bundled
-CLI entry point after deploying 1.9.0. It is dry-run-only unless `--apply` is present:
+CLI entry point after deploying 1.9.1. It is dry-run-only unless `--apply` is present:
 
 ```sh
 docker exec nameless-php-1 php /data/modules/Rules/cli/migrate-patriam.php --self-test
@@ -51,19 +52,20 @@ when the NamelessMC root is not `/data`.
 
 ### Migration safety boundary
 
-The upgrader changes or removes an existing row only when all of its vendor sample fields match
-Rules 1.8.6 exactly:
+The upgrader changes or removes an existing row only when all of its fields exactly match a shipped
+default. The recognized upgrade sources are:
 
 - the Skyfall introduction;
 - the Bedwars and Chat samples;
 - the external Hypixel Player Report and Ban Appeal buttons; and
-- the LemonCloud Bans button.
+- the LemonCloud Bans button; and
+- the Rules 1.9.0 Patriam introduction.
 
 It adds a missing Patriam category by category name, but never overwrites a row already using that
-name. It ensures the two exact Patriam name-and-route button pairs exist. If a customized button uses
-the same name with another route, the custom row is retained and the canonical button is added beside
-it. This deliberately prefers an obvious duplicate for staff to reconcile over silently destroying a
-custom destination.
+name. It ensures the three exact Patriam name-and-route button pairs exist. If a customized button
+uses the same name with another route, the custom row is retained and the canonical button is added
+beside it. This deliberately prefers an obvious duplicate for staff to reconcile over silently
+destroying a custom destination.
 
 Every apply starts its transaction before taking full locking reads of all three tables, builds a
 fresh plan from those locked rows, applies it, re-reads the tables, and must produce an empty second

@@ -46,7 +46,7 @@ if ($selfTest) {
 
     echo $failures
         ? "Rules migration self-test failed.\n"
-        : "Rules migration self-test passed: exact samples migrate, custom rows survive, and repeat runs are no-ops.\n";
+        : "Rules migration self-test passed: exact samples and prior Patriam defaults migrate, custom rows survive, and repeat runs are no-ops.\n";
     exit($failures ? 1 : 0);
 }
 
