@@ -12,7 +12,7 @@
         {/if}
 
         <div class="ui {if count($WIDGETS_LEFT) && count($WIDGETS_RIGHT) }four wide tablet eight wide computer{elseif count($WIDGETS_LEFT) || count($WIDGETS_RIGHT)}ten wide tablet twelve wide computer{else}sixteen wide{/if} column">
-            <div class="ui top attached tabular menu">
+            <div class="ui top attached wrapping stackable tabular menu">
                 <a class="item active" data-tab="home"><i class="fas fa-gavel"></i> {$RULES}</a>
                 {foreach from=$CATEGORIES item=category}
                     <a class="item" data-tab="id-{$category.id}">{if isset($category.icon) && $category.icon|count_characters > 0}{$category.icon} {/if}{$category.name}</a>
