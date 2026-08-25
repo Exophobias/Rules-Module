@@ -65,5 +65,7 @@ the same name with another route, the custom row is retained and the canonical b
 it. This deliberately prefers an obvious duplicate for staff to reconcile over silently destroying a
 custom destination.
 
-Every apply runs in a transaction, re-reads all three tables, and must produce an empty second plan
-before it commits.
+Every apply starts its transaction before taking full locking reads of all three tables, builds a
+fresh plan from those locked rows, applies it, re-reads the tables, and must produce an empty second
+plan before it commits. A StaffCP edit made after a dry-run preview is therefore preserved or waits
+for the migration; a stale row-id plan is never applied.

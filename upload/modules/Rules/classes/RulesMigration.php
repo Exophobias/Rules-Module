@@ -38,8 +38,8 @@ final class Rules_Migration
         $db = DB::getInstance();
         self::assertBaseTables($db);
 
-        $actions = self::plan(self::databaseSnapshot($db));
-        if (!$apply || !$actions) {
+        if (!$apply) {
+            $actions = self::plan(self::databaseSnapshot($db));
             return [
                 'ready' => !$actions,
                 'applied' => false,
@@ -50,6 +50,21 @@ final class Rules_Migration
 
         $db->beginTransaction();
         try {
+            // Re-plan only after locking every current row and insertion gap. A StaffCP edit made
+            // after a dry-run preview must either happen before this snapshot and be preserved by
+            // plan(), or wait until the verified migration commits. Never apply a stale row-id plan.
+            self::lockBaseRows($db);
+            $actions = self::plan(self::databaseSnapshot($db));
+            if (!$actions) {
+                $db->commitTransaction();
+                return [
+                    'ready' => true,
+                    'applied' => false,
+                    'actions' => [],
+                    'remaining' => [],
+                ];
+            }
+
             self::applyActions($db, $actions);
             $remaining = self::plan(self::databaseSnapshot($db));
             if ($remaining) {
@@ -69,6 +84,23 @@ final class Rules_Migration
             'actions' => $actions,
             'remaining' => [],
         ];
+    }
+
+    /**
+     * Lock all existing rows and the surrounding primary-key ranges before the apply snapshot.
+     *
+     * NamelessMC's singleton DB uses the standard nl2_ prefix. These tables are created through
+     * DB::createTable(), which uses InnoDB, so the full ordered locking reads also prevent a
+     * concurrent category/button insert from racing an ensure action.
+     */
+    private static function lockBaseRows($db): void
+    {
+        foreach (self::TABLES as $table) {
+            $query = $db->query("SELECT id FROM nl2_$table ORDER BY id FOR UPDATE");
+            if ($query === false || $query->error()) {
+                throw new RuntimeException("Could not lock nl2_$table for the Rules migration.");
+            }
+        }
     }
 
     /**
